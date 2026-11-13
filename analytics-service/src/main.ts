@@ -12,38 +12,19 @@ async function bootstrap() {
 
   const rabbitUrl = process.env.RABBITMQ_URL || "amqp://guest:guest@localhost:5672";
 
-  // Analytics Service consume de TRES colas dedicadas distintas, una por
-  // cada microservicio productor (patrón de colas dedicadas del proyecto:
-  // el transporte RMQ de NestJS entrega cada mensaje a un único consumidor
-  // de la cola a la que se publica, así que reutilizar una cola que ya
-  // consume otro servicio le habría robado mensajes a ese servicio en vez
-  // de darle a Analytics una copia propia). Las tres se registran con
-  // connectMicroservice() antes de startAllMicroservices(); los
-  // @EventPattern() de cada *.consumer.ts se conectan automáticamente a
-  // las tres, pero como los nombres de evento no se repiten entre colas
-  // (booking.confirmed/cancelled | session.completed | payment.succeeded)
-  // no hay riesgo de que un consumidor reciba el evento equivocado.
+  // Analytics consume de UNA sola cola (analytics_events_queue) con UNA sola
+  // conexión a RabbitMQ. Los tres productores (booking, session y payment)
+  // publican en esa misma cola con su propio cliente; eso respeta el patrón
+  // de "cola dedicada por consumidor" porque Analytics es el único que la lee.
+  // Antes eran 3 colas = 3 conexiones, y el plan gratis de CloudAMQP solo
+  // permite 20 conexiones simultáneas. Los @EventPattern() de los 3
+  // *.consumer.ts siguen igual: los nombres de evento no se repiten
+  // (booking.confirmed/cancelled | session.completed | payment.succeeded).
   app.connectMicroservice<MicroserviceOptions>({
     transport: Transport.RMQ,
     options: {
       urls: [rabbitUrl],
-      queue: "booking_analytics_queue",
-      queueOptions: { durable: true },
-    },
-  });
-  app.connectMicroservice<MicroserviceOptions>({
-    transport: Transport.RMQ,
-    options: {
-      urls: [rabbitUrl],
-      queue: "session_analytics_queue",
-      queueOptions: { durable: true },
-    },
-  });
-  app.connectMicroservice<MicroserviceOptions>({
-    transport: Transport.RMQ,
-    options: {
-      urls: [rabbitUrl],
-      queue: "payment_analytics_queue",
+      queue: "analytics_events_queue",
       queueOptions: { durable: true },
     },
   });

@@ -3,9 +3,11 @@ import { NestFactory } from "@nestjs/core";
 import { ValidationPipe } from "@nestjs/common";
 import { Transport, MicroserviceOptions } from "@nestjs/microservices";
 import { AppModule } from "./app.module";
+import { setupMetrics } from "./metrics";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  setupMetrics(app);
   app.enableCors();
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.setGlobalPrefix("api/v1");

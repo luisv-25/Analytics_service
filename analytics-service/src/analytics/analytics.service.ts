@@ -89,7 +89,9 @@ export class AnalyticsService {
     fact.dim_tutor_id = dimTutor.id;
     fact.dim_subject_id = dimSubject ? dimSubject.id : null;
     fact.amount = data.priceSnapshot;
-    fact.status = FactBookingStatus.CONFIRMED;
+    // RabbitMQ entrega al menos una vez: si booking.confirmed llega de nuevo (o tarde) cuando la
+    // sesión ya se completó, no se retrocede el estado (se perdería la sesión del KPI).
+    if (fact.status !== FactBookingStatus.COMPLETED) fact.status = FactBookingStatus.CONFIRMED;
     await this.factBookingRepo.save(fact);
 
     // "Prueba gratuita" = primera reserva confirmada del estudiante (ver
